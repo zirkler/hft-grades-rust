@@ -1,0 +1,16 @@
+[package]
+
+name = "hft_grades"
+version = "0.0.1"
+authors = [ "Your name <you@example.com>" ]
+
+[dependencies]
+
+rand="0.3.0"
+hyper = "0.10"
+rustc-serialize = "0.3"
+hyper-native-tls = "0.2.2"
+RustyXML = "0.1"
+
+[dependencies.url]
+git = "https://github.com/servo/rust-url"
