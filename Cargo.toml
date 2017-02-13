@@ -11,6 +11,7 @@ hyper = "0.10"
 rustc-serialize = "0.3"
 hyper-native-tls = "0.2.2"
 RustyXML = "0.1"
+rpassword = "0.0.4"
 
 [dependencies.url]
 git = "https://github.com/servo/rust-url"

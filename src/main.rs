@@ -3,15 +3,17 @@ extern crate rustc_serialize;
 extern crate url;
 extern crate hyper_native_tls;
 extern crate xml;
+extern crate rpassword;
 
 use std::io;
+use xml::{Event};
 use std::io::Read;
-use url::form_urlencoded;
 use hyper::Client;
+use url::form_urlencoded;
+use rpassword::read_password;
+use hyper::header::ContentType;
 use hyper::net::HttpsConnector;
 use hyper_native_tls::NativeTlsClient;
-use hyper::header::ContentType;
-use xml::{Event};
 
 struct Grade {
     course: String,
@@ -19,18 +21,16 @@ struct Grade {
     grade_str: String,
     passed: String,
     grade: f64,
-    ects: f64,
+    credits: f64,
 }
 
 fn main() {
-
     println!("{:?}", "Enter Username:");
     let mut username = String::new();
     io::stdin().read_line(&mut username).expect("Failed somehow :(");
 
     println!("{:?}", "Enter Password:");
-    let mut password = String::new();
-    io::stdin().read_line(&mut password).expect("Failed somehow :(");
+    let password = read_password().unwrap();
 
     let url = "https://php.rz.hft-stuttgart.de/hftapp/notenhftapp.php";
     let query = vec![("username", username.trim()), ("password", password.trim())];
@@ -50,7 +50,7 @@ fn main() {
     response.read_to_string(&mut response_str).unwrap();
 
     let mut grades = Vec::new();
-    let mut current_element = String::new();
+    let mut curr_element = String::new();
     let mut p = xml::Parser::new();
     p.feed_str(&response_str);
     
@@ -64,16 +64,16 @@ fn main() {
                         passed: String::new(),
                         grade_str: String::new(),
                         grade: 0.0,
-                        ects: 0.0
+                        credits: 0.0
                     };
                     grades.push(grade);
                 }
-                current_element = tag.name
+                curr_element = tag.name
             },
             Event::Characters(s) => {
                 if !s.trim().is_empty() {
                     let curr_grade = grades.last_mut().unwrap();
-                    match current_element.as_ref() {
+                    match curr_element.as_ref() {
                         "text" => {
                             curr_grade.course = s;
                         },
@@ -82,7 +82,7 @@ fn main() {
                             curr_grade.grade = curr_grade.grade_str.parse().unwrap();
                         },
                         "bonus" => {
-                            curr_grade.ects = s.parse().unwrap();
+                            curr_grade.credits = s.parse().unwrap();
                         },
                         "nummer" => {
                             curr_grade.course_id = s.parse().unwrap();
@@ -98,19 +98,19 @@ fn main() {
         }
     }
 
-    grades.retain(|g| g.ects > 0.0);
+    grades.retain(|g| g.credits > 0.0);
     grades.retain(|g| g.course_id > 2999);
     grades.retain(|g| g.passed == "BE");
     grades.retain(|g| g.grade > 0.0);
 
     let mut cum_grades:f64 = 0.0;
-    let mut total_ects:f64 = 0.0;
+    let mut total_credits:f64 = 0.0;
     for grade in &grades {
-        cum_grades += (grade.grade as f64) * grade.ects;
-        total_ects += grade.ects; 
-        println!("Note {:.1} ({:?} ECTS) in {:?}", grade.grade/100.0, grade.ects, grade.course);
+        cum_grades += (grade.grade as f64) * grade.credits;
+        total_credits += grade.credits; 
+        println!("Note {:.1} ({:?} credits) in {:?}", grade.grade/100.0, grade.credits, grade.course);
     }
 
     println!("Num of Grades: {:?}", grades.len());
-    println!("==> {:.2}", cum_grades/100.0/total_ects);
+    println!("==> Average is {:.2}", cum_grades/100.0/total_credits);
 }
