@@ -32,9 +32,34 @@ fn main() {
     println!("{:?}", "Enter Password:");
     let password = read_password().unwrap();
 
+    // load the grades xml from the APU.
+    let grades_xml = load_grades(&username, &password);
+
+    // squeeze them into our grade struct.
+    let mut grades = parse_grades(&grades_xml);
+
+    // retain only relvant grades.
+    grades.retain(|g| g.credits > 0.0);
+    grades.retain(|g| g.course_id > 2999);
+    grades.retain(|g| g.passed == "BE");
+    grades.retain(|g| g.grade > 0.0);
+
+    // Print out each grade and calculate the average.
+    let mut cum_grades:f64 = 0.0;
+    let mut total_credits:f64 = 0.0;
+    for grade in &grades {
+        cum_grades += (grade.grade as f64) * grade.credits;
+        total_credits += grade.credits; 
+        println!("Note {:.1} ({:?} credits) in {:?}", grade.grade/100.0, grade.credits, grade.course);
+    }
+
+    println!("Num of Grades: {:?}", grades.len());
+    println!("==> Average is {:.2}", cum_grades/100.0/total_credits);
+}
+
+fn load_grades(username: &str, password: &str) -> String {
     let url = "https://php.rz.hft-stuttgart.de/hftapp/notenhftapp.php";
     let query = vec![("username", username.trim()), ("password", password.trim())];
-
     let ssl = NativeTlsClient::new().unwrap();
     let connector = HttpsConnector::new(ssl);
     let client = Client::with_connector(connector);
@@ -48,13 +73,16 @@ fn main() {
         .unwrap();
     let mut response_str = String::new();
     response.read_to_string(&mut response_str).unwrap();
+    response_str
+}
 
+fn parse_grades(xml: &str) -> Vec<Grade> {
     let mut grades = Vec::new();
     let mut curr_element = String::new();
-    let mut p = xml::Parser::new();
-    p.feed_str(&response_str);
+    let mut xml_parser = xml::Parser::new();
+    xml_parser.feed_str(xml);
     
-    for event in p {
+    for event in xml_parser {
         match event.unwrap() {
             Event::ElementStart(tag) => {
                 if tag.name == "e" {
@@ -98,19 +126,5 @@ fn main() {
         }
     }
 
-    grades.retain(|g| g.credits > 0.0);
-    grades.retain(|g| g.course_id > 2999);
-    grades.retain(|g| g.passed == "BE");
-    grades.retain(|g| g.grade > 0.0);
-
-    let mut cum_grades:f64 = 0.0;
-    let mut total_credits:f64 = 0.0;
-    for grade in &grades {
-        cum_grades += (grade.grade as f64) * grade.credits;
-        total_credits += grade.credits; 
-        println!("Note {:.1} ({:?} credits) in {:?}", grade.grade/100.0, grade.credits, grade.course);
-    }
-
-    println!("Num of Grades: {:?}", grades.len());
-    println!("==> Average is {:.2}", cum_grades/100.0/total_credits);
+    grades
 }
